@@ -13,21 +13,21 @@ class DirectWorld {
     ComPtr<ID3D11DeviceContext>  m_context;
     ComPtr<IDXGISwapChain>  m_swapChain;
     ComPtr<ID3D11RenderTargetView>  m_mainRenderTargetView;
-    std::unique_ptr<DirectX::SpriteFont> m_spriteFont;
-    std::unique_ptr<DirectX::SpriteBatch> m_spriteBatch;
+  protected:
     bool inited ;
   public:
     DirectWorld();
-    ~DirectWorld();
+    virtual ~DirectWorld();
     virtual void createRenderTarget();
     virtual bool init(HWND hwnd);
-    virtual void draw();
+    virtual void draw() = 0;
     virtual void setViewport();
-    HRESULT compileD3DFile(const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData);
-    bool createVertexShaderFromFile(const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader);
-    bool createPixelShaderFromFile(const WCHAR  * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader);
-    ComPtr<ID3D11Device>  getDevice();
-    ComPtr<ID3D11DeviceContext>  getContext();
-    ComPtr<IDXGISwapChain>  getSwapChain();
-    ComPtr<ID3D11RenderTargetView>  getMainRenderTargetView();
+    virtual void changeTargetSize(UINT width,UINT height);
+    HRESULT compileD3DFile (const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData)const;
+    bool createVertexShaderFromFile (const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader)const;
+    bool createPixelShaderFromFile (const WCHAR  * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader) const;
+    ComPtr<ID3D11Device>  getDevice() const ;
+    ComPtr<ID3D11DeviceContext>  getContext() const ;
+    ComPtr<IDXGISwapChain>  getSwapChain() const ;
+    ComPtr<ID3D11RenderTargetView>  getMainRenderTargetView()const ;
 };

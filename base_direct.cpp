@@ -26,8 +26,6 @@ bool DirectWorld::init(HWND hWnd) {
         ,&m_swapChain,&m_device,&featureLevel,&m_context) != S_OK) {
     return false;
   }
-  m_spriteBatch = std::make_unique<DirectX::SpriteBatch>(m_context.Get());
-  m_spriteFont = std::make_unique<DirectX::SpriteFont>(m_device.Get(),L"my.spritefont");
   this->createRenderTarget();
   inited = true;
   return true;
@@ -40,24 +38,16 @@ void DirectWorld::createRenderTarget() {
   pBackBuffer->Release();
 }
 
+void DirectWorld::changeTargetSize(UINT width,UINT height){
+  m_swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
+  createRenderTarget();
+}
+
 DirectWorld::DirectWorld() {
   inited = false;
 }
 DirectWorld::~DirectWorld() {
 }
-ComPtr<ID3D11Device>  DirectWorld::getDevice(){
-  return m_device;
-}
-ComPtr<ID3D11DeviceContext>  DirectWorld::getContext(){
-  return m_context;
-}
-ComPtr<IDXGISwapChain>  DirectWorld::getSwapChain(){
-  return m_swapChain;
-}
-ComPtr<ID3D11RenderTargetView>  DirectWorld::getMainRenderTargetView(){
-  return m_mainRenderTargetView;
-}
-
 
 void DirectWorld::setViewport() {
       ID3D11Texture2D * backBuffer;
@@ -76,7 +66,7 @@ void DirectWorld::setViewport() {
       m_context->RSSetViewports(1, &viewport);
 }
 
-HRESULT DirectWorld::compileD3DFile(const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData) {
+HRESULT DirectWorld::compileD3DFile(const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData) const{
   UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined( DEBUG ) || defined( _DEBUG )
       flags |= D3DCOMPILE_DEBUG;
@@ -103,7 +93,7 @@ HRESULT DirectWorld::compileD3DFile(const WCHAR * filename,LPCSTR entryPoint,LPC
       return hr;
 }
 
-bool DirectWorld::createVertexShaderFromFile(const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader) {
+bool DirectWorld::createVertexShaderFromFile(const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader)const {
   ID3DBlob * blob = NULL;
   HRESULT hr = this->compileD3DFile(filename,entryPoint,"vs_5_0",&blob);
   if(FAILED(hr)) {
@@ -114,14 +104,10 @@ bool DirectWorld::createVertexShaderFromFile(const WCHAR * filename,LPCSTR entry
   m_device->CreateVertexShader(blob->GetBufferPointer(),blob->GetBufferSize(),NULL,&vertexShader);
   *outShader = vertexShader;
   blob ->Release();
-  if(FAILED(hr)) {
-    std::cout<<"failed to create layout\n";
-    return false;
-  }
   return true;
 }
 
-bool DirectWorld::createPixelShaderFromFile(const WCHAR * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader) {
+bool DirectWorld::createPixelShaderFromFile(const WCHAR * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader)const {
   ID3DBlob * blob = NULL;
   HRESULT hr = this->compileD3DFile(filename,entryPoint,"ps_5_0",&blob);
   if(FAILED(hr)) {
@@ -132,4 +118,17 @@ bool DirectWorld::createPixelShaderFromFile(const WCHAR * filename,LPCSTR entryP
   *outShader = pixelShader;
   blob->Release();
   return true;
+}
+
+ComPtr<ID3D11Device>  DirectWorld::getDevice()const{
+  return m_device;
+}
+ComPtr<ID3D11DeviceContext>  DirectWorld::getContext()const{
+  return m_context;
+}
+ComPtr<IDXGISwapChain>  DirectWorld::getSwapChain()const{
+  return m_swapChain;
+}
+ComPtr<ID3D11RenderTargetView>  DirectWorld::getMainRenderTargetView()const{
+  return m_mainRenderTargetView;
 }
