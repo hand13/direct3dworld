@@ -4,6 +4,7 @@
 #include "imgui_impl_dx11.h"
 #include <iostream>
 #include "image.h"
+#include "screenutils.h"
 
 ImDirectWorld::ImDirectWorld(ImVec4 clearColor):DirectWorld() {
     this->clearColor = clearColor;
@@ -21,10 +22,27 @@ bool ImDirectWorld::init(HWND hwnd){
 }
 
 bool ImDirectWorld::initResource() {
-    bool ret = LoadTextureFromFile(L"e:/test.jpg",this->getDevice().Get()
-    , imageTexture.textureView.GetAddressOf(), &imageTexture.width, &imageTexture.height);
-    return ret;
+    //bool ret = LoadTextureFromFile(L"e:/test.jpg",this->getDevice().Get()
+    //, imageTexture.textureView.GetAddressOf(), &imageTexture.width, &imageTexture.height);
+    RECT rect;
+    rect.left = 0;
+    rect.right = 1366;
+    rect.top = 0;
+    rect.bottom = 768;
+    //Buffer buffer = getbuffer(rect);
+    //bool ret = LoadTextureFromRawMemory(buffer,this->getDevice().Get()
+    //, imageTexture.textureView.GetAddressOf(), &imageTexture.width, &imageTexture.height);
+    return TRUE;
 }
+
+void ImDirectWorld::switchImage(const wchar_t * image_path) {
+    if(imageTexture.textureView != nullptr) {
+        imageTexture.textureView = nullptr;
+    }
+    bool ret = LoadTextureFromFile(image_path,this->getDevice().Get()
+    , imageTexture.textureView.GetAddressOf(), &imageTexture.width, &imageTexture.height);
+}
+
 
 void ImDirectWorld::draw() {
     if(!inited) {
@@ -37,7 +55,17 @@ void ImDirectWorld::draw() {
     ImGui::NewFrame();
     {
         ImGui::Begin("Hello, world!");
-        ImGui::Image((void*)imageTexture.textureView.Get(), ImVec2(imageTexture.width/4.0f,imageTexture.height/4.0f));
+        ImGui::InputText("image_path",this->image_path_buffer,BUFFERSIZE);
+        if(ImGui::Button("show image")) {
+            wchar_t * tmpbuffer = new wchar_t[128];
+            if(MultiByteToWideChar(CP_ACP,MB_PRECOMPOSED,this->image_path_buffer,-1,tmpbuffer,128)>0) {
+                switchImage(tmpbuffer);
+            }
+            delete [] tmpbuffer;
+        }
+        if(imageTexture.textureView != nullptr) {
+            ImGui::Image((void*)imageTexture.textureView.Get(), ImVec2(ImGui::GetWindowWidth()/2.0f,ImGui::GetWindowHeight()/2.0f));
+        }
         ImGui::End();
     }
     ImGui::Render();
