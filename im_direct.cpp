@@ -44,7 +44,7 @@ void ImDirectWorld::switchImage(const wchar_t * image_path) {
     , &tmp, &imageTexture.width, &imageTexture.height);
 
     ImageRender imageRender(this->getDevice(),this->getContext());
-    imageRender.init_resource(L"e:\\vertex.hlsl",L"e:\\pixel.hlsl",ComPtr<ID3D11ShaderResourceView>(tmp));
+    imageRender.init_resource(L"vertex.hlsl",L"pixel.hlsl",ComPtr<ID3D11ShaderResourceView>(tmp));
     imageRender.render();
     this->imageTexture.textureView = imageRender.output();
 

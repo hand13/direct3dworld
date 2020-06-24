@@ -9,3 +9,6 @@ add_library(imgui STATIC imgui.cpp imgui_demo.cpp imgui_draw.cpp imgui_impl_dx11
   imgui_impl_win32.cpp imgui_widgets.cpp)
 target_link_libraries(imgui d3d11 d3dcompiler)
 target_link_libraries(godlike fmtd imgui d3d11 d3dcompiler DirectXTK ole32)
+add_custom_command(
+    TARGET godlike
+    COMMAND powershell cp ${CMAKE_SOURCE_DIR}/*.hlsl ${CMAKE_SOURCE_DIR}/build/Debug)
