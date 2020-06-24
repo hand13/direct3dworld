@@ -39,8 +39,15 @@ void ImDirectWorld::switchImage(const wchar_t * image_path) {
     if(imageTexture.textureView != nullptr) {
         imageTexture.textureView = nullptr;
     }
+    ID3D11ShaderResourceView * tmp = nullptr;
     bool ret = LoadTextureFromFile(image_path,this->getDevice().Get()
-    , imageTexture.textureView.GetAddressOf(), &imageTexture.width, &imageTexture.height);
+    , &tmp, &imageTexture.width, &imageTexture.height);
+
+    ImageRender imageRender(this->getDevice(),this->getContext());
+    imageRender.init_resource(L"e:\\vertex.hlsl",L"e:\\pixel.hlsl",ComPtr<ID3D11ShaderResourceView>(tmp));
+    imageRender.render();
+    this->imageTexture.textureView = imageRender.output();
+
 }
 
 
@@ -64,7 +71,7 @@ void ImDirectWorld::draw() {
             delete [] tmpbuffer;
         }
         if(imageTexture.textureView != nullptr) {
-            ImGui::Image((void*)imageTexture.textureView.Get(), ImVec2(ImGui::GetWindowWidth()/2.0f,ImGui::GetWindowHeight()/2.0f));
+            ImGui::Image((void*)imageTexture.textureView.Get(), ImVec2(ImGui::GetWindowWidth(),ImGui::GetWindowHeight()));
         }
         ImGui::End();
     }
@@ -76,6 +83,162 @@ void ImDirectWorld::draw() {
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     this->getSwapChain()->Present(1, 0); // Present with vsync
 }
+
 bool ImDirectWorld::isInited() {
     return inited;
+}
+
+
+
+/**
+ *  imagerender
+**/
+
+void ImageRender::init_resource(const wchar_t* vertex_path,const wchar_t *pixel_path,ComPtr<ID3D11ShaderResourceView> in_resource_view) {
+
+    const D3D11_INPUT_ELEMENT_DESC basicVertexLayoutDesc[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            {"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
+        };
+    DirectWorld::createVertexShaderAndInputLayoutFromFile(m_device,vertex_path,"main",&vertex_shader
+    ,basicVertexLayoutDesc,ARRAYSIZE(basicVertexLayoutDesc),&input_layout
+    );
+
+    DirectWorld::createPixelShaderFromFile(m_device,pixel_path,"main",&pixelShader);
+    this->in_resource_view = in_resource_view;
+    ID3D11Resource * resource = nullptr;
+    ID3D11Texture2D * texture2d = nullptr;
+    in_resource_view->GetResource(&resource);
+    if(SUCCEEDED(resource->QueryInterface(&texture2d))) {
+        D3D11_TEXTURE2D_DESC desc;  
+        texture2d->GetDesc(&desc);
+        width = desc.Width;
+        height = desc.Height;
+        texture2d->Release();
+    }
+    resource->Release();
+    this->createTargetView();
+    this->init_buffer();
+}
+
+void ImageRender::createTargetView() {
+    D3D11_TEXTURE2D_DESC desc;
+    ZeroMemory(&desc, sizeof(desc));
+
+    desc.Width = this->width;
+    desc.Height = this->height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0;
+
+    ID3D11Texture2D * texture2d;
+    m_device->CreateTexture2D(&desc,nullptr,&texture2d);
+
+    D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+    renderTargetViewDesc.Format             = desc.Format;
+    renderTargetViewDesc.ViewDimension      = D3D11_RTV_DIMENSION_TEXTURE2D;
+    renderTargetViewDesc.Texture2D.MipSlice = 0;
+    m_device->CreateRenderTargetView(texture2d,&renderTargetViewDesc,&this->target_view);
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+    shaderResourceViewDesc.Format                       = desc.Format;
+    shaderResourceViewDesc.ViewDimension                = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shaderResourceViewDesc.Texture2D.MostDetailedMip    = 0;
+    shaderResourceViewDesc.Texture2D.MipLevels          = 1;
+
+    m_device->CreateShaderResourceView(texture2d, &shaderResourceViewDesc, &this->out_resource_view);
+
+    texture2d->Release();
+}
+
+void ImageRender::init_buffer() {
+    float vertices[] = {
+        -1.0,-1.0,0.0   ,0.0,1.0f,
+        1.0,-1.0,0.0     ,1.0,1.0f,
+        1.0,1.0,0.0    ,1.0,0.0f,
+        -1.0,1.0,0.0   ,0.0,0.0f};
+
+    unsigned short triangleIndices[] = {
+        0,3,2,
+        2,1,0,};
+    D3D11_BUFFER_DESC vertexBufferDesc;
+    ZeroMemory(&vertexBufferDesc,sizeof(vertexBufferDesc));
+    vertexBufferDesc.ByteWidth = sizeof(float) * ARRAYSIZE(vertices);
+    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vertexBufferDesc.CPUAccessFlags = 0;
+    vertexBufferDesc.MiscFlags = 0;
+    vertexBufferDesc.StructureByteStride = 0;
+
+    D3D11_SUBRESOURCE_DATA vertexBufferData;
+    vertexBufferData.pSysMem = vertices;
+    vertexBufferData.SysMemPitch = 0;
+    vertexBufferData.SysMemSlicePitch = 0;
+
+    m_device->CreateBuffer(
+        &vertexBufferDesc,
+        &vertexBufferData,
+        &vertex_buffer
+        );
+    D3D11_BUFFER_DESC indexBufferDesc;
+    indexBufferDesc.ByteWidth = sizeof(unsigned short) * ARRAYSIZE(triangleIndices);
+    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    indexBufferDesc.CPUAccessFlags = 0;
+    indexBufferDesc.MiscFlags = 0;
+    indexBufferDesc.StructureByteStride = 0;
+
+    D3D11_SUBRESOURCE_DATA indexBufferData;
+    indexBufferData.pSysMem = triangleIndices;
+    indexBufferData.SysMemPitch = 0;
+    indexBufferData.SysMemSlicePitch = 0;
+
+    m_device->CreateBuffer(
+        &indexBufferDesc,
+        &indexBufferData,
+        &index_buffer
+        );
+}
+
+void ImageRender::render() {
+    m_context->OMSetRenderTargets(
+                1,
+                target_view.GetAddressOf(),
+                nullptr // Use no depth stencil.
+                );
+    const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    m_context->ClearRenderTargetView(
+                    target_view.Get(),
+                    clearColor
+                    );
+    set_viewport();
+    m_context->IASetInputLayout(input_layout.Get());
+    UINT stride = 20 ;
+    UINT offset = 0;
+    m_context->IASetVertexBuffers(0,1,vertex_buffer.GetAddressOf(),&stride,&offset);
+    m_context->IASetIndexBuffer(index_buffer.Get(),DXGI_FORMAT_R16_UINT,0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->VSSetShader(vertex_shader.Get(),NULL,0);
+    m_context->PSSetShader(pixelShader.Get(),NULL,0);
+    m_context->PSSetShaderResources(0,1,in_resource_view.GetAddressOf());
+    m_context->DrawIndexed(6,0,0);
+}
+ComPtr<ID3D11ShaderResourceView> ImageRender::output() {
+    return this->out_resource_view;
+}
+
+void ImageRender::set_viewport() {
+      D3D11_VIEWPORT viewport;
+      viewport.TopLeftX = 0.0f;
+      viewport.TopLeftY = 0.0f;
+      viewport.Width = static_cast<float>(this->width);
+      viewport.Height = static_cast<float>(this->height);
+      viewport.MinDepth = D3D11_MIN_DEPTH;
+      viewport.MaxDepth = D3D11_MAX_DEPTH;
+      m_context->RSSetViewports(1, &viewport);
 }

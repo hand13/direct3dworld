@@ -23,9 +23,11 @@ class DirectWorld {
     virtual void draw() = 0;
     virtual void setViewport();
     virtual void changeTargetSize(UINT width,UINT height);
-    HRESULT compileD3DFile (const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData)const;
-    bool createVertexShaderFromFile (const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader)const;
-    bool createPixelShaderFromFile (const WCHAR  * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader) const;
+    static HRESULT compileD3DFile (const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData);
+    static bool createVertexShaderAndInputLayoutFromFile(ComPtr<ID3D11Device> device
+    ,const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader
+    ,const D3D11_INPUT_ELEMENT_DESC * input_desc,int input_size,ID3D11InputLayout ** inputLayout);
+    static bool createPixelShaderFromFile (ComPtr<ID3D11Device> device,const WCHAR  * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader);
     ComPtr<ID3D11Device>  getDevice() const ;
     ComPtr<ID3D11DeviceContext>  getContext() const ;
     ComPtr<IDXGISwapChain>  getSwapChain() const ;

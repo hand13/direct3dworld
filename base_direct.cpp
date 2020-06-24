@@ -66,7 +66,7 @@ void DirectWorld::setViewport() {
       m_context->RSSetViewports(1, &viewport);
 }
 
-HRESULT DirectWorld::compileD3DFile(const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData) const{
+HRESULT DirectWorld::compileD3DFile(const WCHAR * filename,LPCSTR entryPoint,LPCSTR profile,ID3DBlob ** outData) {
   UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined( DEBUG ) || defined( _DEBUG )
       flags |= D3DCOMPILE_DEBUG;
@@ -93,28 +93,37 @@ HRESULT DirectWorld::compileD3DFile(const WCHAR * filename,LPCSTR entryPoint,LPC
       return hr;
 }
 
-bool DirectWorld::createVertexShaderFromFile(const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader)const {
+bool DirectWorld::createVertexShaderAndInputLayoutFromFile(ComPtr<ID3D11Device> device
+,const WCHAR * filename,LPCSTR entryPoint,ID3D11VertexShader ** outShader
+,const D3D11_INPUT_ELEMENT_DESC * input_desc,int input_size,ID3D11InputLayout ** inputLayout){
   ID3DBlob * blob = NULL;
-  HRESULT hr = this->compileD3DFile(filename,entryPoint,"vs_5_0",&blob);
+  HRESULT hr = DirectWorld::compileD3DFile(filename,entryPoint,"vs_5_0",&blob);
   if(FAILED(hr)) {
     std::cout<<"failed to compileD3DFile"<<std::endl;
     return false;
   }
   ::ID3D11VertexShader * vertexShader;
-  m_device->CreateVertexShader(blob->GetBufferPointer(),blob->GetBufferSize(),NULL,&vertexShader);
+  device->CreateVertexShader(blob->GetBufferPointer(),blob->GetBufferSize(),NULL,&vertexShader);
   *outShader = vertexShader;
+  device->CreateInputLayout(
+      input_desc,
+      input_size,
+      blob->GetBufferPointer(),
+      blob->GetBufferSize(),
+      inputLayout
+      );
   blob ->Release();
   return true;
 }
 
-bool DirectWorld::createPixelShaderFromFile(const WCHAR * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader)const {
+bool DirectWorld::createPixelShaderFromFile(ComPtr<ID3D11Device> device,const WCHAR * filename,LPCSTR entryPoint,ID3D11PixelShader ** outShader){
   ID3DBlob * blob = NULL;
-  HRESULT hr = this->compileD3DFile(filename,entryPoint,"ps_5_0",&blob);
+  HRESULT hr = DirectWorld::compileD3DFile(filename,entryPoint,"ps_5_0",&blob);
   if(FAILED(hr)) {
     return false;
   }
   ::ID3D11PixelShader * pixelShader;
-  m_device->CreatePixelShader(blob->GetBufferPointer(),blob->GetBufferSize(),NULL,&pixelShader);
+  device->CreatePixelShader(blob->GetBufferPointer(),blob->GetBufferSize(),NULL,&pixelShader);
   *outShader = pixelShader;
   blob->Release();
   return true;
