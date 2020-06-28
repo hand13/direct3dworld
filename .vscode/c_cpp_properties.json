@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "e:\\usr\\include",
-                "e:\\usr\\include\\DXH\\Inc"
+                "e:/usr/include/DXH/Inc"
             ],
             "defines": [
                 "_DEBUG",

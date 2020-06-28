@@ -4,28 +4,14 @@
 #include <windows.h>
 #include "imgui.h"
 #include <vector>
+#include "type.h"
 #define BUFFERSIZE 128
 struct Texture{
     ComPtr<ID3D11ShaderResourceView> textureView;
     UINT width;
     UINT height;
 };
-class ImDirectWorld : public DirectWorld{
-    private:
-    ImVec4 clearColor;
-    Texture imageTexture;
-    void switchImage(const wchar_t * img_path);
-    char image_path_buffer[BUFFERSIZE];
-    public:
-    ImDirectWorld(ImVec4 clearColor);
-    virtual void draw();
-    virtual bool init(HWND hwnd);
-    virtual bool initResource();
-    void setClearColor(ImVec4 clearColor){
-        this->clearColor = clearColor;
-    }
-    bool isInited();
-};
+
 class ImageRender {
     private:
     ComPtr<ID3D11DeviceContext> m_context;
@@ -38,6 +24,8 @@ class ImageRender {
     ComPtr<ID3D11PixelShader> pixelShader;
     ComPtr<ID3D11Buffer> vertex_buffer;
     ComPtr<ID3D11Buffer> index_buffer;
+    ComPtr<ID3D11Buffer> constant_buffer;
+    ConstantBuffer constant_buffer_data;
     bool inited;
     UINT width;
     UINT height;
@@ -53,4 +41,25 @@ class ImageRender {
     void init_buffer();
     void set_viewport();
     ComPtr<ID3D11ShaderResourceView> ImageRender::output();
+    void set_factor(float factor);
+    bool isInited();
+};
+
+class ImDirectWorld : public DirectWorld{
+    private:
+    ImVec4 clearColor;
+    Texture imageTexture;
+    void switchImage(const wchar_t * img_path);
+    char image_path_buffer[BUFFERSIZE];
+    std::shared_ptr<ImageRender> imageRender;
+    public:
+    ImDirectWorld(ImVec4 clearColor);
+    virtual void draw();
+    virtual bool init(HWND hwnd);
+    virtual bool initResource();
+    void setClearColor(ImVec4 clearColor){
+        this->clearColor = clearColor;
+    }
+    void updateImageView();
+    bool isInited();
 };

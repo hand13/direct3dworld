@@ -18,6 +18,7 @@ bool ImDirectWorld::init(HWND hwnd){
             inited = false;
         }
     }
+    imageRender = std::make_shared<ImageRender>(this->getDevice(),this->getContext());
     return inited;
 }
 
@@ -36,18 +37,23 @@ bool ImDirectWorld::initResource() {
 }
 
 void ImDirectWorld::switchImage(const wchar_t * image_path) {
-    if(imageTexture.textureView != nullptr) {
-        imageTexture.textureView = nullptr;
-    }
     ID3D11ShaderResourceView * tmp = nullptr;
     bool ret = LoadTextureFromFile(image_path,this->getDevice().Get()
     , &tmp, &imageTexture.width, &imageTexture.height);
 
-    ImageRender imageRender(this->getDevice(),this->getContext());
-    imageRender.init_resource(L"vertex.hlsl",L"pixel.hlsl",ComPtr<ID3D11ShaderResourceView>(tmp));
-    imageRender.render();
-    this->imageTexture.textureView = imageRender.output();
+    imageRender->init_resource(L"vertex.hlsl",L"pixel.hlsl",ComPtr<ID3D11ShaderResourceView>(tmp));
+    //updateImageView();
+    //imageRender->render();
+    //this->imageTexture.textureView = imageRender->output();
 
+}
+
+void ImDirectWorld::updateImageView() {
+    if(!imageRender->isInited()) {
+        return;
+    }
+    imageRender->render();
+    this->imageTexture.textureView = imageRender->output();
 }
 
 
@@ -70,6 +76,10 @@ void ImDirectWorld::draw() {
             }
             delete [] tmpbuffer;
         }
+        static float factor = 0.0f;
+        ImGui::SliderFloat("factor",&factor,0.0f,8.0f);
+        imageRender->set_factor(std::exp(factor));
+        updateImageView();
         if(imageTexture.textureView != nullptr) {
             ImGui::Image((void*)imageTexture.textureView.Get(), ImVec2(ImGui::GetWindowWidth(),ImGui::GetWindowHeight()));
         }
@@ -96,6 +106,12 @@ bool ImDirectWorld::isInited() {
 
 void ImageRender::init_resource(const wchar_t* vertex_path,const wchar_t *pixel_path,ComPtr<ID3D11ShaderResourceView> in_resource_view) {
 
+    constant_buffer_data.model = {
+        10000.0f,1.0f,1.0f,1.0f,
+        1.0f,1.0f,1.0f,1.0f,
+        1.0f,1.0f,1.0f,1.0f,
+        1.0f,1.0f,1.0f,1.0f,
+    };
     const D3D11_INPUT_ELEMENT_DESC basicVertexLayoutDesc[] =
         {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -120,6 +136,11 @@ void ImageRender::init_resource(const wchar_t* vertex_path,const wchar_t *pixel_
     resource->Release();
     this->createTargetView();
     this->init_buffer();
+    inited = true;
+}
+
+void ImageRender::set_factor(float factor) {
+    constant_buffer_data.model._11 = factor;
 }
 
 void ImageRender::createTargetView() {
@@ -203,6 +224,20 @@ void ImageRender::init_buffer() {
         &indexBufferData,
         &index_buffer
         );
+
+    D3D11_BUFFER_DESC constantBufferDesc;
+    constantBufferDesc.ByteWidth = sizeof(constant_buffer_data);
+    constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    constantBufferDesc.CPUAccessFlags = 0;
+    constantBufferDesc.MiscFlags = 0;
+    constantBufferDesc.StructureByteStride = 0;
+
+    HRESULT hr = m_device->CreateBuffer(
+        &constantBufferDesc,
+        nullptr,
+        &constant_buffer
+        );
 }
 
 void ImageRender::render() {
@@ -226,6 +261,8 @@ void ImageRender::render() {
     m_context->VSSetShader(vertex_shader.Get(),NULL,0);
     m_context->PSSetShader(pixelShader.Get(),NULL,0);
     m_context->PSSetShaderResources(0,1,in_resource_view.GetAddressOf());
+    m_context->UpdateSubresource(constant_buffer.Get(),0,0,&constant_buffer_data,0,0);
+    m_context->PSSetConstantBuffers(0,1,constant_buffer.GetAddressOf());
     m_context->DrawIndexed(6,0,0);
 }
 ComPtr<ID3D11ShaderResourceView> ImageRender::output() {
@@ -241,4 +278,7 @@ void ImageRender::set_viewport() {
       viewport.MinDepth = D3D11_MIN_DEPTH;
       viewport.MaxDepth = D3D11_MAX_DEPTH;
       m_context->RSSetViewports(1, &viewport);
+}
+bool ImageRender::isInited() {
+    return inited;
 }
